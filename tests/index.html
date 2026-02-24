@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>KnowledgeRAG Client</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                background: #f5f5f5;
+                color: #222;
+                padding: 2rem;
+                max-width: 960px;
+                margin: 0 auto;
+            }
+
+            h1 {
+                margin-bottom: 1.5rem;
+                font-size: 1.4rem;
+            }
+            h2 {
+                margin-bottom: 0.75rem;
+                font-size: 1.1rem;
+            }
+
+            /* -- API status footer -- */
+            #api-status {
+                text-align: left;
+                font-size: 0.75rem;
+                color: #888;
+                padding: 1rem 0 0.5rem;
+            }
+            #api-status .status-value {
+                font-weight: 600;
+            }
+            #api-status .status-value.up {
+                color: #16a34a;
+            }
+            #api-status .status-value.starting {
+                color: #ca8a04;
+            }
+            #api-status .status-value.down {
+                color: #dc2626;
+            }
+
+            /* -- Upload form -- */
+            .card {
+                background: #fff;
+                border-radius: 8px;
+                padding: 1.25rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+
+            form {
+                display: flex;
+                gap: 0.75rem;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+
+            input[type="file"] {
+                font-size: 0.85rem;
+            }
+
+            button {
+                padding: 0.5rem 1.25rem;
+                background: #2563eb;
+                color: #fff;
+                border: none;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #1d4ed8;
+            }
+            button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            /* -- File list -- */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.85rem;
+            }
+            th,
+            td {
+                text-align: left;
+                padding: 0.5rem 0.75rem;
+                border-bottom: 1px solid #eee;
+            }
+            th {
+                color: #888;
+                font-weight: 600;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+            }
+            tr:last-child td {
+                border-bottom: none;
+            }
+
+            .empty {
+                color: #999;
+                font-size: 0.85rem;
+                padding: 1rem 0;
+            }
+
+            .file-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .file-header h2 {
+                margin: 0;
+            }
+            .total-chunks {
+                color: #888;
+                font-size: 0.85rem;
+                font-weight: 600;
+            }
+
+            .delete-btn {
+                background: #e53e3e;
+                border: none;
+                color: #fff;
+                cursor: pointer;
+                font-size: 0.75rem;
+                font-weight: 600;
+                padding: 0.3rem 0.6rem;
+                border-radius: 4px;
+                transition: background 0.15s;
+            }
+            .delete-btn:hover {
+                background: #c53030;
+            }
+
+            /* -- Chat window -- */
+            .chat-container {
+                display: flex;
+                flex-direction: column;
+                height: 420px;
+            }
+
+            #chat-messages {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1rem 0;
+                display: flex;
+                flex-direction: column;
+                gap: 0.6rem;
+            }
+
+            .msg {
+                max-width: 75%;
+                padding: 0.6rem 0.9rem;
+                border-radius: 12px;
+                font-size: 0.85rem;
+                line-height: 1.45;
+                word-wrap: break-word;
+            }
+
+            .msg.user {
+                align-self: flex-end;
+                background: #2563eb;
+                color: #fff;
+                border-bottom-right-radius: 4px;
+            }
+
+            .msg.agent {
+                align-self: flex-start;
+                background: #e8e8e8;
+                color: #222;
+                border-bottom-left-radius: 4px;
+            }
+
+            .msg.thinking {
+                align-self: flex-start;
+                background: #e8e8e8;
+                color: #888;
+                border-bottom-left-radius: 4px;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .spinner {
+                width: 14px;
+                height: 14px;
+                border: 2px solid #ccc;
+                border-top-color: #666;
+                border-radius: 50%;
+                animation: spin 0.7s linear infinite;
+                flex-shrink: 0;
+            }
+
+            #chat-form {
+                display: flex;
+                gap: 0.5rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid #eee;
+            }
+
+            #chat-input {
+                flex: 1;
+                padding: 0.5rem 0.75rem;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-family: inherit;
+                outline: none;
+            }
+            #chat-input:focus {
+                border-color: #2563eb;
+            }
+
+            /* -- Markdown inside chat bubbles -- */
+            .msg.agent h1,
+            .msg.agent h2,
+            .msg.agent h3 {
+                margin: 0.5rem 0 0.25rem;
+                font-size: 0.9rem;
+                font-weight: 700;
+            }
+            .msg.agent h1 {
+                font-size: 1rem;
+            }
+            .msg.agent p {
+                margin: 0.3rem 0;
+            }
+            .msg.agent ul,
+            .msg.agent ol {
+                margin: 0.3rem 0 0.3rem 1.2rem;
+            }
+            .msg.agent li {
+                margin: 0.15rem 0;
+            }
+            .msg.agent code {
+                background: rgba(0, 0, 0, 0.07);
+                padding: 0.1rem 0.35rem;
+                border-radius: 3px;
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.8rem;
+            }
+            .msg.agent pre {
+                background: #1e1e1e;
+                color: #d4d4d4;
+                padding: 0.6rem 0.8rem;
+                border-radius: 6px;
+                overflow-x: auto;
+                margin: 0.4rem 0;
+            }
+            .msg.agent pre code {
+                background: none;
+                padding: 0;
+                color: inherit;
+                font-size: 0.8rem;
+            }
+            .msg.agent blockquote {
+                border-left: 3px solid #ccc;
+                padding-left: 0.6rem;
+                margin: 0.3rem 0;
+                color: #666;
+            }
+            .msg.agent a {
+                color: #2563eb;
+                text-decoration: underline;
+            }
+            .msg.agent hr {
+                border: none;
+                border-top: 1px solid #ccc;
+                margin: 0.5rem 0;
+            }
+
+            /* -- Chat header with toggle -- */
+            .chat-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 0.75rem;
+            }
+            .chat-header h2 {
+                margin-bottom: 0;
+            }
+            .toggle-label {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+                font-size: 0.8rem;
+                color: #555;
+                cursor: pointer;
+                user-select: none;
+            }
+            .toggle-label input {
+                cursor: pointer;
+            }
+
+            /* -- Diagnostics window -- */
+            #diagnostics {
+                display: none;
+                margin-top: 1rem;
+            }
+            #diagnostics.visible {
+                display: block;
+            }
+            #diagnostics-content {
+                max-height: 400px;
+                overflow-y: auto;
+                border-radius: 6px;
+                padding: 0.5rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .report {
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                padding: 0.6rem 0.9rem;
+                cursor: pointer;
+                transition: background 0.15s, border-color 0.15s;
+            }
+            .report:hover {
+                background: #f0f4ff;
+                border-color: #a0b4e0;
+            }
+            .report-title {
+                font-weight: 600;
+                font-size: 0.85rem;
+                color: #222;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .report-subtitle {
+                font-size: 0.75rem;
+                color: #888;
+                margin-top: 0.15rem;
+            }
+            .report-chunks {
+                display: flex;
+                flex-direction: column;
+                gap: 0.4rem;
+                margin-top: 0.6rem;
+            }
+            .report-chunks.hidden {
+                display: none;
+            }
+            .chunk-card {
+                background: #f9f9f9;
+                border: 1px solid #eee;
+                border-radius: 4px;
+                padding: 0.5rem 0.7rem;
+            }
+            .chunk-heading {
+                font-weight: 600;
+                font-size: 0.8rem;
+                color: #2563eb;
+                margin-bottom: 0.25rem;
+            }
+            .chunk-info {
+                font-size: 0.78rem;
+                color: #444;
+                line-height: 1.45;
+            }
+            .chunk-info .chunk-meta {
+                color: #888;
+                font-size: 0.75rem;
+                margin-bottom: 0.2rem;
+            }
+            .chunk-info .chunk-content {
+                max-height: 120px;
+                overflow-y: auto;
+                white-space: pre-wrap;
+                word-break: break-word;
+                background: #fff;
+                border: 1px solid #eee;
+                border-radius: 3px;
+                padding: 0.35rem 0.5rem;
+                margin-top: 0.2rem;
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.75rem;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>KnowledgeRAG Client</h1>
+
+        <!-- Upload form -->
+        <div class="card">
+            <h2>Upload File</h2>
+            <form id="upload-form">
+                <input type="file" id="file-input" required />
+                <button type="submit" id="upload-btn">Upload</button>
+            </form>
+        </div>
+
+        <!-- File list -->
+        <div class="card">
+            <div class="file-header">
+                <h2>Files</h2>
+                <span class="total-chunks" id="total-chunks"></span>
+            </div>
+            <div id="file-list"></div>
+        </div>
+
+        <!-- Chat window -->
+        <div class="card chat-container">
+            <div class="chat-header">
+                <h2>Chat</h2>
+                <label class="toggle-label">
+                    <input type="checkbox" id="include-info-toggle" />
+                    Include Info
+                </label>
+            </div>
+            <div id="chat-messages"></div>
+            <form id="chat-form">
+                <input
+                    type="text"
+                    id="chat-input"
+                    placeholder="Ask the agent something..."
+                    autocomplete="off"
+                />
+                <button type="submit" id="chat-btn">Send</button>
+            </form>
+        </div>
+
+        <!-- Diagnostics window -->
+        <div class="card" id="diagnostics">
+            <h2>Chat Info</h2>
+            <div id="diagnostics-content"></div>
+        </div>
+
+        <!-- API status footer -->
+        <div id="api-status">
+            API Status: <span id="status-value" class="status-value starting">Starting</span>
+        </div>
+
+        <script>
+            const API = "http://localhost:8000";
+
+            const fileListEl = document.getElementById("file-list");
+            const form = document.getElementById("upload-form");
+            const fileInput = document.getElementById("file-input");
+            const uploadBtn = document.getElementById("upload-btn");
+            const statusValueEl = document.getElementById("status-value");
+
+            // ---- Health polling ----
+
+            async function checkHealth() {
+                try {
+                    const res = await fetch(API + "/health");
+                    if (res.ok) {
+                        statusValueEl.textContent = "All Good";
+                        statusValueEl.className = "status-value up";
+                    } else {
+                        statusValueEl.textContent = "Down";
+                        statusValueEl.className = "status-value down";
+                    }
+                } catch {
+                    statusValueEl.textContent = "Down";
+                    statusValueEl.className = "status-value down";
+                }
+            }
+
+            checkHealth();
+            setInterval(checkHealth, 10000);
+
+            // ---- Fetch and render file list ----
+
+            async function loadFiles() {
+                try {
+                    const res = await fetch(API + "/file");
+                    if (!res.ok) return;
+
+                    const files = await res.json();
+                    renderFiles(files);
+                } catch (err) {
+                    }
+            }
+
+            function renderFiles(files) {
+                var totalChunksEl = document.getElementById("total-chunks");
+                if (!files || files.length === 0) {
+                    fileListEl.innerHTML = '<p class="empty">No files yet.</p>';
+                    totalChunksEl.textContent = "";
+                    return;
+                }
+
+                var totalChunks = files.reduce(function (sum, f) {
+                    return sum + (f.num_chunks || 0);
+                }, 0);
+                totalChunksEl.textContent = "Total Chunks: " + totalChunks;
+
+                var rows = files
+                    .map(function (f) {
+                        var date = new Date(f.created_at).toLocaleString();
+                        var chunks = f.num_chunks != null ? f.num_chunks : "—";
+                        return (
+                            "<tr>" +
+                            "<td>" + escapeHtml(f.name) + "</td>" +
+                            "<td>" + escapeHtml(f.id) + "</td>" +
+                            "<td>" + chunks + "</td>" +
+                            "<td>" + escapeHtml(date) + "</td>" +
+                            '<td><button class="delete-btn" onclick="deleteFile(\'' + escapeHtml(f.id) + '\')">Delete</button></td>' +
+                            "</tr>"
+                        );
+                    })
+                    .join("");
+
+                fileListEl.innerHTML =
+                    "<table><thead><tr><th>Name</th><th>ID</th><th>Chunks</th><th>Created</th><th></th></tr></thead>" +
+                    "<tbody>" +
+                    rows +
+                    "</tbody></table>";
+            }
+
+            async function deleteFile(fileId) {
+                if (!confirm("Delete this file?")) return;
+                try {
+                    var res = await fetch(API + "/file/" + fileId, { method: "DELETE" });
+                    if (res.ok) {
+                        loadFiles();
+                    } else {
+                        alert("Failed to delete file.");
+                    }
+                } catch (err) {
+                    alert("Error deleting file.");
+                }
+            }
+
+            // ---- Upload ----
+
+            form.addEventListener("submit", async function (e) {
+                e.preventDefault();
+
+                const file = fileInput.files[0];
+                if (!file) return;
+
+                const body = new FormData();
+                body.append("file", file);
+
+                uploadBtn.disabled = true;
+
+                try {
+                    const res = await fetch(API + "/file", {
+                        method: "POST",
+                        body: body,
+                    });
+
+                    if (res.ok) {
+                        form.reset();
+                        await loadFiles();
+                    }
+                } catch {
+                    // upload failed silently; health poll will reflect API state
+                } finally {
+                    uploadBtn.disabled = false;
+                }
+            });
+
+            // ---- Utility ----
+
+            function escapeHtml(str) {
+                var div = document.createElement("div");
+                div.appendChild(document.createTextNode(str));
+                return div.innerHTML;
+            }
+
+            // ---- Markdown parser ----
+
+            function parseMarkdown(md) {
+                var html = escapeHtml(md);
+
+                // Code blocks: ```lang\ncode\n```
+                html = html.replace(
+                    /```(\w*)\n([\s\S]*?)```/g,
+                    function (_, lang, code) {
+                        return (
+                            "<pre><code>" +
+                            code.replace(/\n$/, "") +
+                            "</code></pre>"
+                        );
+                    },
+                );
+
+                // Inline code: `code`
+                html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+
+                // Headings: ### h3, ## h2, # h1
+                html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+                html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+                html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+
+                // Horizontal rule
+                html = html.replace(/^---$/gm, "<hr>");
+
+                // Blockquote
+                html = html.replace(
+                    /^&gt; (.+)$/gm,
+                    "<blockquote>$1</blockquote>",
+                );
+
+                // Bold: **text**
+                html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+                // Italic: *text*
+                html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+                // Links: [text](url)
+                html = html.replace(
+                    /\[([^\]]+)\]\(([^)]+)\)/g,
+                    '<a href="$2" target="_blank" rel="noopener">$1</a>',
+                );
+
+                // Unordered lists: lines starting with - or *
+                html = html.replace(
+                    /(^|\n)((?:(?:- |\* ).+\n?)+)/g,
+                    function (_, before, block) {
+                        var items = block
+                            .trim()
+                            .split("\n")
+                            .map(function (line) {
+                                return (
+                                    "<li>" +
+                                    line.replace(/^[-*] /, "") +
+                                    "</li>"
+                                );
+                            })
+                            .join("");
+                        return before + "<ul>" + items + "</ul>";
+                    },
+                );
+
+                // Ordered lists: lines starting with 1. 2. etc
+                html = html.replace(
+                    /(^|\n)((?:\d+\. .+\n?)+)/g,
+                    function (_, before, block) {
+                        var items = block
+                            .trim()
+                            .split("\n")
+                            .map(function (line) {
+                                return (
+                                    "<li>" +
+                                    line.replace(/^\d+\. /, "") +
+                                    "</li>"
+                                );
+                            })
+                            .join("");
+                        return before + "<ol>" + items + "</ol>";
+                    },
+                );
+
+                // Paragraphs: double newlines
+                html = html.replace(/\n\n+/g, "</p><p>");
+
+                // Single newlines to <br> (but not inside pre/ul/ol)
+                html = html.replace(/(?<!\>)\n(?!\<)/g, "<br>");
+
+                return "<p>" + html + "</p>";
+            }
+
+            // ---- Chat ----
+
+            const chatMessages = document.getElementById("chat-messages");
+            const chatForm = document.getElementById("chat-form");
+            const chatInput = document.getElementById("chat-input");
+            const chatBtn = document.getElementById("chat-btn");
+            const includeInfoToggle = document.getElementById("include-info-toggle");
+            const diagnosticsEl = document.getElementById("diagnostics");
+            const diagnosticsContent = document.getElementById("diagnostics-content");
+
+            includeInfoToggle.addEventListener("change", function () {
+                if (includeInfoToggle.checked) {
+                    diagnosticsEl.classList.add("visible");
+                } else {
+                    diagnosticsEl.classList.remove("visible");
+                }
+            });
+
+            var diagMessageCounter = 0;
+
+            function addDiagnostics(query, searchTool, chunks) {
+                diagMessageCounter++;
+                var n = diagMessageCounter;
+
+                var report = document.createElement("div");
+                report.className = "report";
+
+                var truncatedQuery = query.length > 80 ? query.substring(0, 80) + "..." : query;
+
+                var title = document.createElement("div");
+                title.className = "report-title";
+                title.textContent = truncatedQuery;
+
+                var subtitle = document.createElement("div");
+                subtitle.className = "report-subtitle";
+                subtitle.textContent = "Search Method: " + (searchTool || "unknown");
+
+                report.appendChild(title);
+                report.appendChild(subtitle);
+
+                var chunksContainer = document.createElement("div");
+                chunksContainer.className = "report-chunks hidden";
+
+                chunks.forEach(function (c) {
+                    var card = document.createElement("div");
+                    card.className = "chunk-card";
+
+                    var heading = document.createElement("div");
+                    heading.className = "chunk-heading";
+                    heading.textContent = "(" + c.chunk_index + "): " + c.file_name;
+
+                    var info = document.createElement("div");
+                    info.className = "chunk-info";
+
+                    var meta = document.createElement("div");
+                    meta.className = "chunk-meta";
+                    var page = (c.file_page === undefined || c.file_page === -1) ? "NA" : c.file_page;
+                    meta.textContent = "Similarity: " + c.similarity.toFixed(4) + "  |  Page: " + page;
+
+                    var content = document.createElement("div");
+                    content.className = "chunk-content";
+                    content.textContent = c.content;
+
+                    info.appendChild(meta);
+                    info.appendChild(content);
+                    card.appendChild(heading);
+                    card.appendChild(info);
+                    chunksContainer.appendChild(card);
+                });
+
+                report.appendChild(chunksContainer);
+
+                report.addEventListener("click", function (e) {
+                    if (chunksContainer.contains(e.target)) return;
+                    chunksContainer.classList.toggle("hidden");
+                });
+
+                diagnosticsContent.appendChild(report);
+                diagnosticsContent.scrollTop = diagnosticsContent.scrollHeight;
+            }
+
+            const thinkingTexts = [
+                "Thinking...",
+                "Generating...",
+                "Answering...",
+                "Responding...",
+            ];
+
+            function addMessage(text, type) {
+                const div = document.createElement("div");
+                div.className = "msg " + type;
+                if (type === "agent") {
+                    div.innerHTML = parseMarkdown(text);
+                } else {
+                    div.textContent = text;
+                }
+                chatMessages.appendChild(div);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                return div;
+            }
+
+            function addThinking() {
+                const label =
+                    thinkingTexts[
+                        Math.floor(Math.random() * thinkingTexts.length)
+                    ];
+                const div = document.createElement("div");
+                div.className = "msg thinking";
+                div.innerHTML =
+                    '<div class="spinner"></div>' + escapeHtml(label);
+                chatMessages.appendChild(div);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                return div;
+            }
+
+            chatForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const query = chatInput.value.trim();
+                if (!query) return;
+
+                addMessage(query, "user");
+                chatInput.value = "";
+                chatBtn.disabled = true;
+
+                const thinkingEl = addThinking();
+
+                try {
+                    var url = API + "/chat";
+                    if (includeInfoToggle.checked) {
+                        url += "?include_info=true";
+                    }
+                    const body = new FormData();
+                    body.append("message", query);
+                    const res = await fetch(url, {
+                        method: "POST",
+                        body: body,
+                    });
+                    thinkingEl.remove();
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        var content = data.result.content;
+                        addMessage(content, "agent");
+
+                        if (includeInfoToggle.checked && data.result.search_tool !== undefined) {
+                            addDiagnostics(query, data.result.search_tool, data.result.chunks || []);
+                        }
+                    } else {
+                        const data = await res.json().catch(function () {
+                            return null;
+                        });
+                        const detail =
+                            data && data.detail ? data.detail : res.statusText;
+                        addMessage(
+                            "Error: " + res.status + " - " + detail,
+                            "agent",
+                        );
+                    }
+                } catch (err) {
+                    thinkingEl.remove();
+                    addMessage("Network error: " + err.message, "agent");
+                } finally {
+                    chatBtn.disabled = false;
+                    chatInput.focus();
+                }
+            });
+
+            // ---- Init ----
+            loadFiles();
+        </script>
+    </body>
+</html>
