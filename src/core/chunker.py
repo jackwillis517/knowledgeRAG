@@ -7,7 +7,7 @@ import requests
 import torch  # noqa: F401 — must be imported before docling to avoid DLL load error on Windows
 from docling.chunking import HybridChunker
 from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 
 from src.core.llm import describe_image
@@ -22,27 +22,41 @@ from src.core.mimes import (
 )
 
 
-def build_converter() -> DocumentConverter:
+def build_converter(do_ocr: bool = False) -> DocumentConverter:
     """
     Build a DocumentConverter with sensible defaults.
-    For PDFs: enables table structure detection and embedded image OCR.
+
+    Args:
+        do_ocr: Enable OCR for scanned/image-based PDFs. Default False
+                 since most PDFs are digital with selectable text.
     """
     pipeline_options = PdfPipelineOptions()
-    pipeline_options.do_ocr = True  # OCR embedded images in PDFs
-    pipeline_options.do_table_structure = True  # Detect table layouts
+    pipeline_options.do_ocr = do_ocr
+    pipeline_options.do_table_structure = True
+
+    if do_ocr:
+        pipeline_options.ocr_options = RapidOcrOptions()
 
     converter = DocumentConverter(
+        allowed_formats=[
+            InputFormat.PDF,
+            InputFormat.DOCX,
+            InputFormat.PPTX,
+            InputFormat.HTML,
+            InputFormat.MD,
+        ],
         format_options={
             InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options),
-        }
+        },
     )
     return converter
 
 
 file_converter = build_converter()
+file_converter_ocr = build_converter(do_ocr=True)
 
 
-def chunk(docling_doc, source_label: str, metadata: dict):
+def chunk(docling_doc, metadata: dict):
     """
     Run HybridChunker on a DoclingDocument and print each chunk.
     Returns list of chunk dicts (ready to be stored later).
@@ -102,11 +116,14 @@ def chunk(docling_doc, source_label: str, metadata: dict):
 
 
 def process_document(
-    file_bytes: bytes, filename: str, mime_type: str
+    file_bytes: bytes, filename: str, mime_type: str, do_ocr: bool = False
 ) -> tuple[list[dict], str]:
     """
     Process a document (PDF (with images), DOCX, PPTX, HTML, Markdown/text)
     through Docling and return chunks.
+
+    Args:
+        do_ocr: Use OCR converter for scanned PDFs. Default False.
     """
     suffix = Path(filename).suffix.lower() or ".bin"
     metadata = {
@@ -114,18 +131,20 @@ def process_document(
         "mime_type": mime_type,
     }
 
+    converter = file_converter_ocr if do_ocr else file_converter
+
     # Write to temp file — Docling requires a file path
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(file_bytes)
         tmp_path = Path(tmp.name)
 
     try:
-        result = file_converter.convert(tmp_path)
+        result = converter.convert(tmp_path)
         doc = result.document
     finally:
         tmp_path.unlink(missing_ok=True)
 
-    return chunk(doc, filename, metadata)
+    return chunk(doc, metadata)
 
 
 def process_image(
@@ -160,7 +179,7 @@ def process_image(
     finally:
         tmp_path.unlink(missing_ok=True)
 
-    return chunk(doc, filename, metadata)
+    return chunk(doc, metadata)
 
 
 def _fetch_url(url: str) -> tuple[bytes, str, str]:
@@ -188,6 +207,7 @@ def chunk_file(
     mime_type: Optional[str] = None,
     url: Optional[str] = None,
     file_path: Optional[str | Path] = None,
+    do_ocr: bool = False,
 ) -> tuple[list[dict], str]:
     """
     Main entry point. Detects file type and routes to correct processor.
@@ -221,7 +241,7 @@ def chunk_file(
     if mime_type in IMAGE_MIMES:
         return process_image(file_bytes, filename, mime_type)
     elif mime_type in (PDF_MIME, DOCX_MIME, PPTX_MIME, *HTML_MIMES, *MD_MIMES):
-        return process_document(file_bytes, filename, mime_type)
+        return process_document(file_bytes, filename, mime_type, do_ocr=do_ocr)
     else:
         raise ValueError(f"Unsupported file type: {mime_type} ({filename})")
 

@@ -40,6 +40,7 @@ class MessageResponse(BaseModel):
 class ListFilesResponse(BaseModel):
     id: str
     name: str
+    num_chunks: int
     created_at: datetime
 
 

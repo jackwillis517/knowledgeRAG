@@ -17,9 +17,6 @@
                     sans-serif;
                 background: #f5f5f5;
                 color: #222;
-                padding: 2rem;
-                max-width: 960px;
-                margin: 0 auto;
             }
 
             h1 {
@@ -29,6 +26,93 @@
             h2 {
                 margin-bottom: 0.75rem;
                 font-size: 1.1rem;
+            }
+
+            /* -- Sidebar -- */
+            .sidebar {
+                width: 280px;
+                background: #fff;
+                border-right: 1px solid #e5e7eb;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+                position: fixed;
+                left: 0;
+                top: 0;
+            }
+            .sidebar-header {
+                padding: 1rem;
+                border-bottom: 1px solid #e5e7eb;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .sidebar-header h2 { margin: 0; font-size: 1rem; }
+            #conv-list {
+                flex: 1;
+                overflow-y: auto;
+            }
+
+            .new-chat-btn {
+                padding: 0.4rem 0.8rem;
+                background: #2563eb;
+                color: #fff;
+                border: none;
+                border-radius: 6px;
+                font-size: 0.78rem;
+                cursor: pointer;
+            }
+            .new-chat-btn:hover { background: #1d4ed8; }
+
+            .conv-item {
+                padding: 0.6rem 0.75rem;
+                cursor: pointer;
+                border-left: 3px solid transparent;
+                transition: background 0.15s, border-color 0.15s;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            .conv-item:hover { background: #f0f4ff; }
+            .conv-item.active {
+                background: #eff6ff;
+                border-left-color: #2563eb;
+            }
+            .conv-info {
+                flex: 1;
+                min-width: 0;
+            }
+            .conv-title {
+                font-size: 0.82rem;
+                font-weight: 500;
+                color: #333;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .conv-date {
+                font-size: 0.7rem;
+                color: #999;
+                margin-top: 0.15rem;
+            }
+            .conv-delete {
+                background: none;
+                border: none;
+                color: #ccc;
+                cursor: pointer;
+                font-size: 0.85rem;
+                padding: 0;
+                line-height: 1;
+                flex-shrink: 0;
+            }
+            .conv-delete:hover { color: #e53e3e; }
+
+            /* -- Main area -- */
+            .main-area {
+                margin-left: 280px;
+                padding: 2rem;
+                max-width: 960px;
             }
 
             /* -- API status footer -- */
@@ -333,7 +417,9 @@
                 border-radius: 6px;
                 padding: 0.6rem 0.9rem;
                 cursor: pointer;
-                transition: background 0.15s, border-color 0.15s;
+                transition:
+                    background 0.15s,
+                    border-color 0.15s;
             }
             .report:hover {
                 background: #f0f4ff;
@@ -399,56 +485,75 @@
         </style>
     </head>
     <body>
-        <h1>KnowledgeRAG Client</h1>
-
-        <!-- Upload form -->
-        <div class="card">
-            <h2>Upload File</h2>
-            <form id="upload-form">
-                <input type="file" id="file-input" required />
-                <button type="submit" id="upload-btn">Upload</button>
-            </form>
-        </div>
-
-        <!-- File list -->
-        <div class="card">
-            <div class="file-header">
-                <h2>Files</h2>
-                <span class="total-chunks" id="total-chunks"></span>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Conversations</h2>
+                <button class="new-chat-btn" onclick="startNewChat()">New Chat</button>
             </div>
-            <div id="file-list"></div>
+            <div id="conv-list"></div>
         </div>
 
-        <!-- Chat window -->
-        <div class="card chat-container">
-            <div class="chat-header">
-                <h2>Chat</h2>
-                <label class="toggle-label">
-                    <input type="checkbox" id="include-info-toggle" />
-                    Include Info
-                </label>
+        <!-- Main area -->
+        <div class="main-area">
+            <h1>KnowledgeRAG Client</h1>
+
+            <!-- Upload form -->
+            <div class="card">
+                <h2>Upload File</h2>
+                <form id="upload-form">
+                    <input type="file" id="file-input" required />
+                    <label style="display:inline-flex;align-items:center;gap:4px;margin:8px 0">
+                        <input type="checkbox" id="ocr-toggle" />
+                        OCR (for scanned PDFs)
+                    </label>
+                    <button type="submit" id="upload-btn">Upload</button>
+                </form>
             </div>
-            <div id="chat-messages"></div>
-            <form id="chat-form">
-                <input
-                    type="text"
-                    id="chat-input"
-                    placeholder="Ask the agent something..."
-                    autocomplete="off"
-                />
-                <button type="submit" id="chat-btn">Send</button>
-            </form>
-        </div>
 
-        <!-- Diagnostics window -->
-        <div class="card" id="diagnostics">
-            <h2>Chat Info</h2>
-            <div id="diagnostics-content"></div>
-        </div>
+            <!-- File list -->
+            <div class="card">
+                <div class="file-header">
+                    <h2>Files</h2>
+                    <span class="total-chunks" id="total-chunks"></span>
+                </div>
+                <div id="file-list"></div>
+            </div>
 
-        <!-- API status footer -->
-        <div id="api-status">
-            API Status: <span id="status-value" class="status-value starting">Starting</span>
+            <!-- Chat window -->
+            <div class="card chat-container">
+                <div class="chat-header">
+                    <h2 id="chat-title">New Chat</h2>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="include-info-toggle" />
+                        Include Info
+                    </label>
+                </div>
+                <div id="chat-messages"></div>
+                <form id="chat-form">
+                    <input
+                        type="text"
+                        id="chat-input"
+                        placeholder="Ask the agent something..."
+                        autocomplete="off"
+                    />
+                    <button type="submit" id="chat-btn">Send</button>
+                </form>
+            </div>
+
+            <!-- Diagnostics window -->
+            <div class="card" id="diagnostics">
+                <h2>Chat Info</h2>
+                <div id="diagnostics-content"></div>
+            </div>
+
+            <!-- API status footer -->
+            <div id="api-status">
+                API Status:
+                <span id="status-value" class="status-value starting"
+                    >Starting</span
+                >
+            </div>
         </div>
 
         <script>
@@ -459,6 +564,10 @@
             const fileInput = document.getElementById("file-input");
             const uploadBtn = document.getElementById("upload-btn");
             const statusValueEl = document.getElementById("status-value");
+
+            let currentChatId = null;
+            const convListEl = document.getElementById("conv-list");
+            const chatTitleEl = document.getElementById("chat-title");
 
             // ---- Health polling ----
 
@@ -481,6 +590,124 @@
             checkHealth();
             setInterval(checkHealth, 10000);
 
+            // ---- Conversations ----
+
+            async function loadConversations() {
+                try {
+                    const res = await fetch(API + "/chat");
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    renderConversations(data.chats || []);
+                } catch (err) {}
+            }
+
+            function renderConversations(chats) {
+                // Sort by updated_at descending (most recent first)
+                chats.sort(function (a, b) {
+                    return new Date(b.updated_at) - new Date(a.updated_at);
+                });
+
+                convListEl.innerHTML = "";
+
+                if (chats.length === 0) {
+                    convListEl.innerHTML = '<p style="padding: 1rem; color: #999; font-size: 0.82rem;">No conversations yet.</p>';
+                    return;
+                }
+
+                chats.forEach(function (chat) {
+                    var chatId = chat._id || chat.id;
+
+                    var item = document.createElement("div");
+                    item.className = "conv-item" + (currentChatId === chatId ? " active" : "");
+                    item.setAttribute("data-chat-id", chatId);
+                    item.addEventListener("click", function () {
+                        selectConversation(chatId, chat.title);
+                    });
+
+                    var info = document.createElement("div");
+                    info.className = "conv-info";
+
+                    var title = document.createElement("div");
+                    title.className = "conv-title";
+                    title.textContent = chat.title || "Untitled";
+
+                    var date = document.createElement("div");
+                    date.className = "conv-date";
+                    date.textContent = new Date(chat.updated_at || chat.created_at).toLocaleDateString();
+
+                    info.appendChild(title);
+                    info.appendChild(date);
+
+                    var delBtn = document.createElement("button");
+                    delBtn.className = "conv-delete";
+                    delBtn.textContent = "\u2715";
+                    delBtn.title = "Delete conversation";
+                    delBtn.addEventListener("click", function (e) {
+                        e.stopPropagation();
+                        deleteConversation(chatId);
+                    });
+
+                    item.appendChild(info);
+                    item.appendChild(delBtn);
+                    convListEl.appendChild(item);
+                });
+            }
+
+            async function selectConversation(chatId, title) {
+                currentChatId = chatId;
+
+                // Update active class
+                document.querySelectorAll(".conv-item").forEach(function (el) {
+                    el.classList.toggle("active", el.getAttribute("data-chat-id") === chatId);
+                });
+
+                // Update chat header
+                chatTitleEl.textContent = title || "Chat";
+
+                // Clear chat messages
+                chatMessages.innerHTML = "";
+
+                // Fetch and render messages
+                try {
+                    var res = await fetch(API + "/chat/" + chatId);
+                    if (!res.ok) return;
+                    var data = await res.json();
+                    var messages = data.chats || [];
+                    messages.forEach(function (msg) {
+                        var type = msg.role === "user" ? "user" : "agent";
+                        addMessage(msg.content, type);
+                    });
+                } catch (err) {}
+            }
+
+            async function deleteConversation(chatId) {
+                if (!confirm("Delete this conversation?")) return;
+                try {
+                    var res = await fetch(API + "/chat/" + chatId, { method: "DELETE" });
+                    if (res.ok || res.status === 204) {
+                        if (currentChatId === chatId) {
+                            currentChatId = null;
+                            chatMessages.innerHTML = "";
+                            chatTitleEl.textContent = "New Chat";
+                            diagnosticsContent.innerHTML = "";
+                        }
+                        loadConversations();
+                    }
+                } catch (err) {}
+            }
+
+            function startNewChat() {
+                currentChatId = null;
+                chatMessages.innerHTML = "";
+                diagnosticsContent.innerHTML = "";
+                chatTitleEl.textContent = "New Chat";
+
+                // Remove active class from all conv items
+                document.querySelectorAll(".conv-item").forEach(function (el) {
+                    el.classList.remove("active");
+                });
+            }
+
             // ---- Fetch and render file list ----
 
             async function loadFiles() {
@@ -490,8 +717,7 @@
 
                     const files = await res.json();
                     renderFiles(files);
-                } catch (err) {
-                    }
+                } catch (err) {}
             }
 
             function renderFiles(files) {
@@ -510,14 +736,24 @@
                 var rows = files
                     .map(function (f) {
                         var date = new Date(f.created_at).toLocaleString();
-                        var chunks = f.num_chunks != null ? f.num_chunks : "—";
+                        var chunks = f.num_chunks != null ? f.num_chunks : "\u2014";
                         return (
                             "<tr>" +
-                            "<td>" + escapeHtml(f.name) + "</td>" +
-                            "<td>" + escapeHtml(f.id) + "</td>" +
-                            "<td>" + chunks + "</td>" +
-                            "<td>" + escapeHtml(date) + "</td>" +
-                            '<td><button class="delete-btn" onclick="deleteFile(\'' + escapeHtml(f.id) + '\')">Delete</button></td>' +
+                            "<td>" +
+                            escapeHtml(f.name) +
+                            "</td>" +
+                            "<td>" +
+                            escapeHtml(f.id) +
+                            "</td>" +
+                            "<td>" +
+                            chunks +
+                            "</td>" +
+                            "<td>" +
+                            escapeHtml(date) +
+                            "</td>" +
+                            '<td><button class="delete-btn" onclick="deleteFile(\'' +
+                            escapeHtml(f.id) +
+                            "')\">Delete</button></td>" +
                             "</tr>"
                         );
                     })
@@ -533,7 +769,9 @@
             async function deleteFile(fileId) {
                 if (!confirm("Delete this file?")) return;
                 try {
-                    var res = await fetch(API + "/file/" + fileId, { method: "DELETE" });
+                    var res = await fetch(API + "/file/" + fileId, {
+                        method: "DELETE",
+                    });
                     if (res.ok) {
                         loadFiles();
                     } else {
@@ -554,6 +792,7 @@
 
                 const body = new FormData();
                 body.append("file", file);
+                body.append("do_ocr", document.getElementById("ocr-toggle").checked);
 
                 uploadBtn.disabled = true;
 
@@ -681,9 +920,13 @@
             const chatForm = document.getElementById("chat-form");
             const chatInput = document.getElementById("chat-input");
             const chatBtn = document.getElementById("chat-btn");
-            const includeInfoToggle = document.getElementById("include-info-toggle");
+            const includeInfoToggle = document.getElementById(
+                "include-info-toggle",
+            );
             const diagnosticsEl = document.getElementById("diagnostics");
-            const diagnosticsContent = document.getElementById("diagnostics-content");
+            const diagnosticsContent = document.getElementById(
+                "diagnostics-content",
+            );
 
             includeInfoToggle.addEventListener("change", function () {
                 if (includeInfoToggle.checked) {
@@ -702,7 +945,8 @@
                 var report = document.createElement("div");
                 report.className = "report";
 
-                var truncatedQuery = query.length > 80 ? query.substring(0, 80) + "..." : query;
+                var truncatedQuery =
+                    query.length > 80 ? query.substring(0, 80) + "..." : query;
 
                 var title = document.createElement("div");
                 title.className = "report-title";
@@ -710,7 +954,8 @@
 
                 var subtitle = document.createElement("div");
                 subtitle.className = "report-subtitle";
-                subtitle.textContent = "Search Method: " + (searchTool || "unknown");
+                subtitle.textContent =
+                    "Search Method: " + (searchTool || "unknown");
 
                 report.appendChild(title);
                 report.appendChild(subtitle);
@@ -724,15 +969,23 @@
 
                     var heading = document.createElement("div");
                     heading.className = "chunk-heading";
-                    heading.textContent = "(" + c.chunk_index + "): " + c.file_name;
+                    heading.textContent =
+                        "(" + c.chunk_index + "): " + c.file_name;
 
                     var info = document.createElement("div");
                     info.className = "chunk-info";
 
                     var meta = document.createElement("div");
                     meta.className = "chunk-meta";
-                    var page = (c.file_page === undefined || c.file_page === -1) ? "NA" : c.file_page;
-                    meta.textContent = "Similarity: " + c.similarity.toFixed(4) + "  |  Page: " + page;
+                    var page =
+                        c.file_page === undefined || c.file_page === -1
+                            ? "NA"
+                            : c.file_page;
+                    meta.textContent =
+                        "Similarity: " +
+                        c.similarity.toFixed(4) +
+                        "  |  Page: " +
+                        page;
 
                     var content = document.createElement("div");
                     content.className = "chunk-content";
@@ -802,10 +1055,16 @@
                 const thinkingEl = addThinking();
 
                 try {
-                    var url = API + "/chat";
-                    if (includeInfoToggle.checked) {
-                        url += "?include_info=true";
+                    var url;
+                    if (currentChatId) {
+                        url = API + "/chat/" + currentChatId;
+                    } else {
+                        url = API + "/chat";
                     }
+                    if (includeInfoToggle.checked) {
+                        url += (url.includes("?") ? "&" : "?") + "include_info=true";
+                    }
+
                     const body = new FormData();
                     body.append("message", query);
                     const res = await fetch(url, {
@@ -819,8 +1078,22 @@
                         var content = data.result.content;
                         addMessage(content, "agent");
 
-                        if (includeInfoToggle.checked && data.result.search_tool !== undefined) {
-                            addDiagnostics(query, data.result.search_tool, data.result.chunks || []);
+                        // If this was a new chat, capture the chat_id and reload conversations
+                        if (!currentChatId && data.chat_id) {
+                            currentChatId = data.chat_id;
+                            chatTitleEl.textContent = "Chat";
+                            loadConversations();
+                        }
+
+                        if (
+                            includeInfoToggle.checked &&
+                            data.result.search_tool !== undefined
+                        ) {
+                            addDiagnostics(
+                                query,
+                                data.result.search_tool,
+                                data.result.chunks || [],
+                            );
                         }
                     } else {
                         const data = await res.json().catch(function () {
@@ -844,6 +1117,7 @@
 
             // ---- Init ----
             loadFiles();
+            loadConversations();
         </script>
     </body>
 </html>

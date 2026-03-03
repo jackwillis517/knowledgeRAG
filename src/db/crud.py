@@ -35,7 +35,7 @@ async def insert_chunks(chunk_dicts: list[dict[str, Any]]) -> None:
 async def get_all_files() -> list[dict[str, Any]]:
     return (
         await _db()["files"]
-        .find({}, {"_id": 1, "name": 1, "created_at": 1})
+        .find({}, {"_id": 1, "name": 1, "num_chunks": 1, "created_at": 1})
         .to_list(100)
     )
 
@@ -73,9 +73,10 @@ async def get_chat(chat_id: str) -> list[dict[str, Any]]:
     return await _db()["messages"].find({"chat_id": ObjectId(chat_id)}).to_list(100)
 
 
-async def create_chat(title: str) -> ObjectId:
+async def create_chat(title: str, user_id: str = "jacks-test-id") -> ObjectId:
     chat_dict = {
         "title": title,
+        "user_id": user_id,
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
     }
